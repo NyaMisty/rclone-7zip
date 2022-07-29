@@ -13,11 +13,11 @@ func BetterCopy(dst io.Writer, src io.Reader, bufferSize int, writerFinishHandle
 	readerChan := make(chan bool)
 	writerChan := make(chan bool)
 	copyChan := make(chan []byte, bufferSize/COPY_BUFFER_SIZE+1)
-	var finalErr error
+	var curErr error
 	written := 0
 	go func() {
 		for {
-			if finalErr != nil {
+			if curErr != nil {
 				break
 			}
 			buf := make([]byte, COPY_BUFFER_SIZE)
@@ -28,7 +28,7 @@ func BetterCopy(dst io.Writer, src io.Reader, bufferSize int, writerFinishHandle
 			// log.Infof("ReadSent")
 			if err != nil {
 				// read error
-				finalErr = err
+				curErr = err
 				break
 			}
 
@@ -46,7 +46,7 @@ func BetterCopy(dst io.Writer, src io.Reader, bufferSize int, writerFinishHandle
 				buf = _buf
 			case <-time.After(2 * time.Second):
 				// log.Infof("(Write recv timeout)")
-				if finalErr != nil {
+				if curErr != nil {
 					// no more data in chan & error exists
 					break out
 				}
@@ -56,13 +56,13 @@ func BetterCopy(dst io.Writer, src io.Reader, bufferSize int, writerFinishHandle
 			// log.Infof("Wrote buf")
 			if n < len(buf) && err == nil {
 				// short write
-				finalErr = fmt.Errorf("short write")
+				curErr = fmt.Errorf("short write")
 				break
 			}
 			written += n
 			if err != nil {
 				// write error
-				finalErr = err
+				curErr = err
 				break
 			}
 
@@ -70,16 +70,21 @@ func BetterCopy(dst io.Writer, src io.Reader, bufferSize int, writerFinishHandle
 		writerChan <- true
 	}()
 
+	var finalErr error
 	handleReaderExit := func() {
 		<-readerChan
-		if finalErr == io.EOF {
+		close(readerChan)
+		finalErr = curErr
+		if curErr == io.EOF {
 			finalErr = nil
 		}
 	}
 
 	handleWriterExit := func() {
 		<-writerChan
-		if finalErr == io.EOF {
+		close(writerChan)
+		finalErr = curErr
+		if curErr == io.EOF {
 			finalErr = nil
 		}
 	}
