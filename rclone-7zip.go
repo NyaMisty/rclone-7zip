@@ -17,7 +17,7 @@ var RunArg struct {
 	ArchiveFile     string `arg:"" help:"Archive to upload"`
 	ArchivePassword string `name:"password" help:"Archive password"`
 	UploadPath      string `arg:"" help:"Upload Rclone path (fs:path)"`
-	UploadBuffer    int64  `name:"buffer" default:"134217728" help:"Upload Rclone path (fs:path)"` // 128M
+	UploadBuffer    int64  `name:"buffer" default:"134217728" help:"Buffer for data transmission between Rclone"` // 128M
 }
 
 var g_rclone *rclone_utils.RcloneUtil
