@@ -47,6 +47,7 @@ func main() {
 	archive.InitSevenZip()
 	a, itemCount := archive.OpenArchive(RunArg.ArchiveFile, RunArg.ArchivePassword)
 
+	// at first we need to process all items
 	processItems := make([]int64, itemCount)
 	for i := 0; i < int(itemCount); i++ {
 		processItems[i] = int64(i)
@@ -80,6 +81,7 @@ func main() {
 		} else {
 			log.Warnf("Items failed: %v", failedItems)
 		}
+		// identify which item we need to re-process
 		processItems = make([]int64, len(failedItems))
 		for i := 0; i < len(failedItems); i++ {
 			processItems[i] = failedItems[i].ItemId

@@ -13,10 +13,33 @@ import (
 )
 
 func (r *RcloneUtil) RcatSize(path string, size int64, bufferSize int64, asyncCallback func(resp interface{}, err error)) (writer io.WriteCloser, err error) {
-	if r.RcloneMode == "rc" {
-		reader, writer := io.Pipe()
+	// --- The Process of RcatSize
+	// 0. Create pipe writer and return to the caller for transfer
+	// 1. Create FIFO
+	// 2. Prepare arguments for the rclone RC call, Do the RC call
+	// 3. Open FIFO and start the transfer
+	// --- Performance of RcatSize
+	// In the above process:
+	//		No0 rely on nothing
+	//		No2 and No3 rely on No1
+	//		No3's os.OpenFile will wait until rclone connects and read the FIFO
+	// so we make:
+	//		No0 in the caller goroutine to return ASAP
+	//		No1 & No3 in goroutine1 to create FIFO and wait for copy
+	//		No2 in goroutine2 to request RC
+	// --- Ratelimiting of RcatSize
+	// We also have to limit the transfer number to avoid memory exhaust
+	// In our case, there're several blocking point, which we can actually inject semaphore code there
+	// 1. at beginning & ending of goroutine1
+	// 2. at copy beginning & ending
+	// 3. at RC async job beginning & ending
+	// the actual transfer is happening in Rclone, so we must choose 3 to avoid buffer stacks up in Rclone side
 
+	reader, writer := io.Pipe()
+
+	if r.RcloneMode == "rc" {
 		go func() {
+			// goroutine 1
 			//r.maxTransferSem.Acquire(context.Background(), 1)
 			//defer r.maxTransferSem.Release(1)
 
@@ -79,7 +102,6 @@ func (r *RcloneUtil) RcatSize(path string, size int64, bufferSize int64, asyncCa
 			// this open call will block until rclone connects
 			fifoWriter, err := os.OpenFile(fifoTmpPath, os.O_WRONLY, os.ModeNamedPipe)
 			if err != nil {
-				//return nil, err
 				log.Errorf("Failed to open fifo file, err: %v", err)
 				cleanup()
 				return
@@ -95,7 +117,7 @@ func (r *RcloneUtil) RcatSize(path string, size int64, bufferSize int64, asyncCa
 				}
 				err = fifoWriter.Close()
 				log.Debugf("RcatSize ioCopy writer finished, fifoClose err: %v", err)
-				cleanup()
+				cleanup() // do cleanup here because all writer are exited
 			})
 			log.Debugf("RcatSize ioCopy reader finished n: %d, err: %v", n, err)
 			// we can't cleanup here as BetterCopy's writer may still pending

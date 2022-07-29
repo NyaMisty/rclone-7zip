@@ -83,6 +83,7 @@ func (r *RcloneUtil) _doRcReq(opName string, body map[string]interface{}, asyncC
 		AsyncFinish:  make(chan bool, 1),
 	}
 	if isAsync {
+		// asyncCallback is always called unless err
 		type AsyncJobRet struct {
 			Jobid int `json:"jobid"`
 		}

@@ -8,6 +8,14 @@ import (
 
 var COPY_BUFFER_SIZE = 32 * 1024
 
+// BetterCopy copies src to dst, just like io.Copy, but using two goroutine allowing for simultaneously read & write
+// The working mechanism is:
+// 		Reader -> chan []byte (buffered) -> Writer
+// When reader finishes, this func can finish at once, or waiting writer to finish like io.Copy
+// 		- if you supply writerFinishHandler, then it will return when reader EOF,
+//			and send writer result to the handler instead
+// 		- if you give a nil to the handler, it will wait until writer finished all chunks in chan
+// With these feature, you can maximize the copy bandwidth
 func BetterCopy(dst io.Writer, src io.Reader, bufferSize int, writerFinishHandler func(writerErr error)) (int, error) {
 	// ringBuf := ringbuffer.New(bufferSize)
 	readerChan := make(chan bool)
@@ -16,6 +24,7 @@ func BetterCopy(dst io.Writer, src io.Reader, bufferSize int, writerFinishHandle
 	var curErr error
 	written := 0
 	go func() {
+		// Reader goroutine
 		for {
 			if curErr != nil {
 				break
@@ -37,6 +46,7 @@ func BetterCopy(dst io.Writer, src io.Reader, bufferSize int, writerFinishHandle
 	}()
 
 	go func() {
+		// Writer goroutine
 	out:
 		for {
 			var buf []byte
@@ -72,6 +82,7 @@ func BetterCopy(dst io.Writer, src io.Reader, bufferSize int, writerFinishHandle
 
 	var finalErr error
 	handleReaderExit := func() {
+		// wait for Reader exit signal
 		<-readerChan
 		close(readerChan)
 		finalErr = curErr
@@ -81,6 +92,7 @@ func BetterCopy(dst io.Writer, src io.Reader, bufferSize int, writerFinishHandle
 	}
 
 	handleWriterExit := func() {
+		// wait for Writer exit signal
 		<-writerChan
 		close(writerChan)
 		finalErr = curErr
@@ -92,6 +104,7 @@ func BetterCopy(dst io.Writer, src io.Reader, bufferSize int, writerFinishHandle
 	handleReaderExit()
 	if writerFinishHandler != nil {
 		go func() {
+			// if writerFinishHandler supplied, handle the writer exit there instead
 			handleWriterExit()
 			writerFinishHandler(finalErr)
 		}()
