@@ -10,9 +10,10 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 )
 
-func (r *RcloneUtil) RcatSize(path string, size int64, bufferSize int64, asyncCallback func(resp interface{}, err error)) (writer io.WriteCloser, err error) {
+func (r *RcloneUtil) RcatSize(path string, size int64, modTime time.Time, bufferSize int64, asyncCallback func(resp interface{}, err error)) (writer io.WriteCloser, err error) {
 	// --- The Process of RcatSize
 	// 0. Create pipe writer and return to the caller for transfer
 	// 1. Create FIFO
@@ -60,15 +61,21 @@ func (r *RcloneUtil) RcatSize(path string, size int64, bufferSize int64, asyncCa
 			}
 			log.Debugf("Created fifo %s (%v)", fifoTmpPath, err)
 
-			cleanup := func() {
+			var fifoWriter *os.File
+
+			// 	stopAndCleanup will close all pipes and let the fifo shutdown,
+			//		and in turn made _doRcReq finish & do the callback
+			// 		this function is safe to be called multiple times
+			stopAndCleanup := func() {
 				log.Debugf("Cleanup for %s, fifo %s!", path, fifoTmpPath)
 				writer.Close()
 				reader.Close()
-				err := os.Remove(fifoTmpPath)
-				if err != nil {
-					log.Infof("fifoRemove %s, err %v", fifoTmpPath, err)
+				if fifoWriter != nil {
+					fifoWriter.Close()
 				}
+				os.Remove(fifoTmpPath)
 			}
+
 			go func() {
 				pathSplitTmp := strings.SplitN(path, ":", 2)
 				dstFs := "/"
@@ -81,29 +88,35 @@ func (r *RcloneUtil) RcatSize(path string, size int64, bufferSize int64, asyncCa
 
 				r.maxTransferSem.Acquire(context.Background(), 1)
 				asyncCallbackWrap := func(resp interface{}, err error) {
+					stopAndCleanup() // here we must close the fifoWriter, even if we may have already called it
+					// or BetterCopy may be stuck at Write call and never finish
 					defer r.maxTransferSem.Release(1)
 					asyncCallback(resp, err)
 				}
 
 				_, err = r._doRcReq("operations/rcatsize", map[string]interface{}{
-					"type":   "fifo",
-					"addr":   fifoTmpPath,
-					"size":   size,
-					"fs":     dstFs,
-					"remote": dstRemote,
+					"type":    "fifo",
+					"addr":    fifoTmpPath,
+					"size":    size,
+					"modtime": modTime.Format(time.RFC3339),
+					"fs":      dstFs,
+					"remote":  dstRemote,
 				}, asyncCallbackWrap)
-				if err != nil {
-					cleanup()
+				if err != nil { // start RC async job rcatsize failed
+					stopAndCleanup()
 					asyncCallbackWrap(nil, err)
 					return
 				}
+				// from here, asyncCallbackWrap is only called by _doRcReq
 			}()
 
+			// --- From here, when exiting, we must call stopAndCleanup
+
 			// this open call will block until rclone connects
-			fifoWriter, err := os.OpenFile(fifoTmpPath, os.O_WRONLY, os.ModeNamedPipe)
+			fifoWriter, err = os.OpenFile(fifoTmpPath, os.O_WRONLY, os.ModeNamedPipe)
 			if err != nil {
 				log.Errorf("Failed to open fifo file, err: %v", err)
-				cleanup()
+				stopAndCleanup() // stop the pipe writer, and let _doRcReq to call the callback
 				return
 			}
 			log.Debugf("Rclone opened the fifo, start transmitting!")
@@ -117,10 +130,11 @@ func (r *RcloneUtil) RcatSize(path string, size int64, bufferSize int64, asyncCa
 				}
 				err = fifoWriter.Close()
 				log.Debugf("RcatSize ioCopy writer finished, fifoClose err: %v", err)
-				cleanup() // do cleanup here because all writer are exited
+				stopAndCleanup() // do stopAndCleanup here because all writer are exited
+				// we should do so because rclone may still wait for our fifo to transfer data
 			})
 			log.Debugf("RcatSize ioCopy reader finished n: %d, err: %v", n, err)
-			// we can't cleanup here as BetterCopy's writer may still pending
+			// we can't stopAndCleanup here as BetterCopy's writer may still pending
 		}()
 
 		return writer, nil
