@@ -7,6 +7,7 @@ import (
 	"github.com/alecthomas/kong"
 	log "github.com/sirupsen/logrus"
 	"io"
+	"time"
 )
 
 var RunArg struct {
@@ -62,9 +63,9 @@ func main() {
 		log.Infof("Extracting all items (%d items), round %d", len(processItems), i)
 		failedItems = make([]FailItemInfo, 0, 10)
 		handler := &archive.SZExtractHandler{
-			StreamFactory: func(archiveIndex int64, path string, size int64) (io.WriteCloser, error) {
+			StreamFactory: func(archiveIndex int64, path string, size int64, modTime time.Time) (io.WriteCloser, error) {
 				log.Infof("StreamFactory handler creating rcatSize(%s, %d)", path, size)
-				return g_rclone.RcatSize(RunArg.UploadPath+"/"+path, size, RunArg.UploadBuffer, func(resp interface{}, err error) {
+				return g_rclone.RcatSize(RunArg.UploadPath+"/"+path, size, modTime, RunArg.UploadBuffer, func(resp interface{}, err error) {
 					if err != nil {
 						log.Errorf("StreamFactory handler rcatSize(%s, %d) failed", path, size)
 						failedItems = append(failedItems, FailItemInfo{archiveIndex, path})

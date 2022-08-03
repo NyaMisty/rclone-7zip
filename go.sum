@@ -1,5 +1,5 @@
-github.com/NyaMisty/sevenzip-go v0.0.0-20220728170000-53ac00757a19 h1:Mde6Z9ZSyCVTRZwUJPgu/OwImQzHfDY4Z16QPTplmp8=
-github.com/NyaMisty/sevenzip-go v0.0.0-20220728170000-53ac00757a19/go.mod h1:5ppm0m2hS/bHydxUQbmuY/U6dsCVaFLmfu+7vY2lwcU=
+github.com/NyaMisty/sevenzip-go v0.0.0-20220803152322-b5bb54b2e125 h1:ioC1HpS5rnrUCvK9pWvfFkQUvLXuBAJESE3TUg5GZw0=
+github.com/NyaMisty/sevenzip-go v0.0.0-20220803152322-b5bb54b2e125/go.mod h1:5ppm0m2hS/bHydxUQbmuY/U6dsCVaFLmfu+7vY2lwcU=
 github.com/alecthomas/kong v0.6.1 h1:1kNhcFepkR+HmasQpbiKDLylIL8yh5B5y1zPp5bJimA=
 github.com/alecthomas/kong v0.6.1/go.mod h1:JfHWDzLmbh/puW6I3V7uWenoh56YNVONW+w8eKeUr9I=
 github.com/alecthomas/repr v0.0.0-20210801044451-80ca428c5142 h1:8Uy0oSf5co/NZXje7U1z8Mpep++QJOldL2hs/sBQf48=

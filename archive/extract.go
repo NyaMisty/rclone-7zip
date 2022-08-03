@@ -12,7 +12,7 @@ import (
 )
 
 type SZExtractHandler struct {
-	StreamFactory func(archiveIndex int64, path string, size int64) (io.WriteCloser, error)
+	StreamFactory func(archiveIndex int64, path string, size int64, modTime time.Time) (io.WriteCloser, error)
 }
 
 func (e *SZExtractHandler) GetStream(item *sz.Item) (*sz.OutStream, error) {
@@ -53,7 +53,12 @@ func (e *SZExtractHandler) GetStream(item *sz.Item) (*sz.OutStream, error) {
 		log.Debugf("==> Symlink dest: %s", symlink)
 	}
 
-	of, err := e.StreamFactory(item.GetArchiveIndex(), outPath, int64(size))
+	var modTime time.Time
+	if modTime, ok := item.GetFileTimeProperty(sz.PidSymLink); ok {
+		log.Infof("==> ModTime dest: %s", modTime)
+	}
+
+	of, err := e.StreamFactory(item.GetArchiveIndex(), outPath, int64(size), modTime)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

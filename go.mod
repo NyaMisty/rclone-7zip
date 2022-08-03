@@ -20,4 +20,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/itchio/sevenzip-go v0.0.0-20190703112252-e327cec6c376 => github.com/NyaMisty/sevenzip-go v0.0.0-20220728170000-53ac00757a19
+replace github.com/itchio/sevenzip-go v0.0.0-20190703112252-e327cec6c376 => github.com/NyaMisty/sevenzip-go v0.0.0-20220803152322-b5bb54b2e125
