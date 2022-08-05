@@ -67,7 +67,7 @@ func main() {
 				log.Infof("StreamFactory handler creating rcatSize(%s, %d)", path, size)
 				return g_rclone.RcatSize(RunArg.UploadPath+"/"+path, size, modTime, RunArg.UploadBuffer, func(resp interface{}, err error) {
 					if err != nil {
-						log.Errorf("StreamFactory handler rcatSize(%s, %d) failed", path, size)
+						log.Errorf("StreamFactory handler rcatSize(%s, %d) failed, resp %v, err: %v", path, size, resp, err)
 						failedItems = append(failedItems, FailItemInfo{archiveIndex, path})
 					}
 					log.Infof("StreamFactory handler rcatSize(%s, %d) finished, resp %v err %v", path, size, resp, err)

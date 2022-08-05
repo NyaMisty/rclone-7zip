@@ -117,7 +117,7 @@ func (r *RcloneUtil) _doRcReq(opName string, body map[string]interface{}, asyncC
 				err = json.Unmarshal(resp.Body(), &jobStatusRet)
 				if err != nil || jobStatusRet.Error != "" {
 					log.Warnf("asyncHandler jobStatus(%d) error: %v", jobId, resp.String())
-					asyncCallback(nil, fmt.Errorf("asyncJob failed to get job id status, server resp: %v", resp.String()))
+					asyncCallback(nil, fmt.Errorf("asyncJob job error, server resp: %v", resp.String()))
 					return
 				}
 				if jobStatusRet.Finished {
