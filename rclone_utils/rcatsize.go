@@ -93,15 +93,16 @@ func (r *RcloneUtil) RcatSize(path string, size int64, modTime time.Time, buffer
 					defer r.maxTransferSem.Release(1)
 					asyncCallback(resp, err)
 				}
-
-				_, err = r._doRcReq("operations/rcatsize", map[string]interface{}{
+				params := map[string]interface{}{
 					"type":    "fifo",
 					"addr":    fifoTmpPath,
 					"size":    size,
 					"modtime": modTime.Format(time.RFC3339),
 					"fs":      dstFs,
 					"remote":  dstRemote,
-				}, asyncCallbackWrap)
+				}
+				log.Infof("Doing rclone operations/rcatsize %v", params)
+				_, err = r._doRcReq("operations/rcatsize", params, asyncCallbackWrap)
 				if err != nil { // start RC async job rcatsize failed
 					stopAndCleanup()
 					asyncCallbackWrap(nil, err)
