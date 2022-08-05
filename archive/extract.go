@@ -54,8 +54,9 @@ func (e *SZExtractHandler) GetStream(item *sz.Item) (*sz.OutStream, error) {
 	}
 
 	var modTime time.Time
-	if modTime, ok := item.GetFileTimeProperty(sz.PidSymLink); ok {
-		log.Infof("==> ModTime dest: %s", modTime)
+	if _modTime, ok := item.GetFileTimeProperty(sz.PidMTime); ok {
+		modTime = _modTime
+		log.Infof("==> ModTime: %s", modTime)
 	}
 
 	of, err := e.StreamFactory(item.GetArchiveIndex(), outPath, int64(size), modTime)
